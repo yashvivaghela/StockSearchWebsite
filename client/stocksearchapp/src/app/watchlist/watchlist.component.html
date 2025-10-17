@@ -1,0 +1,48 @@
+<div class="container">
+    <div class="row justify-content-center mb-2">
+        <div class="col-12 col-md-9 mb-5">
+            <h1 class="mb-4 mt-4">My Watchlist</h1>
+            <div class="d-flex justify-content-center mt-2">
+                <mat-spinner [diameter]="50" *ngIf="iswatchlistLoading"></mat-spinner>
+            </div>
+            <ngb-alert *ngIf="nowatchlistError" type="warning" [dismissible]="false" class="mt-2 text-center">
+                {{ nowatchlistErrorMessage }}
+            </ngb-alert>
+            <div *ngIf="!iswatchlistLoading">
+                <div *ngFor="let item of watchlistData">
+                    <div *ngFor="let stockItem of item.stock" class="card mb-3"
+                        (click)="navigateToSearch(stockItem.Symbol)">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <button type="button" class="btn-close"
+                                        (click)="deleteStock(stockItem.Symbol);$event.stopPropagation();"
+                                        aria-label="Close"></button>
+                                    <div class="d-flex justify-content-between">
+                                        <h2 class="card-title fw-bold">{{ stockItem.Symbol }}</h2>
+                                    </div>
+                                    <p class="card-text mb-2">{{ stockItem.CompanyName }}</p>
+                                </div>
+                                <div class="col-md-6 mt-2">
+                                    <div *ngIf="stockItem.quote" class="text-right">
+                                        <h2
+                                            [ngClass]="{'text-success': stockItem.quote.d > 0, 'text-danger': stockItem.quote.d < 0}">
+                                            {{ stockItem.quote.c | number: '1.2-2' }}
+                                        </h2>
+                                        <div
+                                            [ngClass]="{'text-success': stockItem.quote.d > 0, 'text-danger': stockItem.quote.d < 0}">
+                                            <i
+                                                [ngClass]="{'bi-caret-up-fill': stockItem.quote.d > 0, 'bi-caret-down-fill': stockItem.quote.d < 0}"></i>
+                                            {{ stockItem.quote.d | number: '1.2-2' }} ({{ stockItem.quote.dp | number:
+                                            '1.2-2' }}%)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

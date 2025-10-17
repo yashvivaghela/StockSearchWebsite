@@ -1,0 +1,162 @@
+<div class="container">
+    <ngb-alert *ngIf="buyalert" type="success" class="mt-2 text-center">
+        {{ buyalertMessage }}
+    </ngb-alert>
+    <ngb-alert *ngIf="sellalert" type="danger" class="mt-2 text-center">
+        {{ sellalertMessage }}
+    </ngb-alert>
+
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-12 col-md-9 mb-5">
+            <h1 class="my-4">My Portfolio</h1>
+            <div class="d-flex justify-content-center mt-2">
+                <mat-spinner [diameter]="50" *ngIf="isportfolioLoading"></mat-spinner>
+            </div>
+ 
+            <div *ngIf="!isportfolioLoading">
+          
+                <div class="container ">
+                    <h3 class="mb-3">Money in Wallet: {{ portfolioData[0]?.Balance | currency }}</h3>
+                    <ngb-alert *ngIf="portfolioEmpty" type="warning" [dismissible]="false" class="mt-2 text-center">
+                        {{ portfolioEmptyMessage }}
+                    </ngb-alert>
+                    <div *ngFor="let portfolioItem of portfolioData" class="portfolio-item">
+                        <div *ngFor="let stock of portfolioItem.stocks" class="card mb-4">
+                            <div class="card-header" (click)="navigateToSearch(stock.Symbol)">
+                                <div class="row align-items-center">
+                                    <div class="col-auto">
+                                        <h1 class="mb-0 fw-bold">{{ stock.Symbol }}</h1>
+                                    </div>
+                                    <div class="col ml-0text-muted">
+                                        {{ stock.CompanyName }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col">
+                                        <p class="fw-bold">Quantity: </p>
+                                        <p class="fw-bold">Avg. Cost/Share: </p>
+                                        <p class="fw-bold">Total Cost: </p>
+                                    </div>
+                                    <div class="col">
+                                        <p class="fw-normal">{{ stock.Quantity}}</p>
+                                        <p class="fw-normal">{{ stock.BuyingPrice|number: '1.2-2'}}</p>
+                                        <p class="fw-normal">{{ stock.Quantity * stock.BuyingPrice |number: '1.2-2'}}
+                                        </p>
+                                    </div>
+                                    <div class="col">
+                                        <p class="fw-bold">Change: </p>
+                                        <p class="fw-bold">Current Price: </p>
+                                        <p class="fw-bold">Market Value: </p>
+                                    </div>
+
+                                    <div class="col">
+
+                                        <p [ngClass]="{
+                                'text-success': stock.quote > stock.BuyingPrice, 
+                                'text-danger': stock.quote < stock.BuyingPrice,
+                                'text-dark': stock.quote === stock.BuyingPrice
+                              }">
+                                            <i [ngClass]="{
+                                  'bi-caret-up-fill': stock.quote > stock.BuyingPrice, 
+                                  'bi-caret-down-fill': stock.quote < stock.BuyingPrice,
+                                }"></i>
+                                            {{ stock.BuyingPrice - stock.quote | number: '1.2-2'}}
+                                        </p>
+
+
+                                        <p [ngClass]="{
+                                'text-success': stock.quote > stock.BuyingPrice, 
+                                'text-danger': stock.quote < stock.BuyingPrice,
+                                'text-dark': stock.quote === stock.BuyingPrice
+                              }">{{ stock.quote | number: '1.2-2'}}</p>
+
+
+                                        <p [ngClass]="{
+                                'text-success': stock.quote > stock.BuyingPrice, 
+                                'text-danger': stock.quote < stock.BuyingPrice,
+                                'text-dark': stock.quote === stock.BuyingPrice
+                              }">{{ stock.quote * stock.Quantity | number: '1.2-2'}}</p>
+
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <div class="col">
+                                    <button type="button" class="btn btn-primary m-1"
+                                        (click)="selectbuysellitems(stock, buyModal)">Buy</button>
+                                    <button type="button" class="btn btn-danger m-1"
+                                        (click)="selectbuysellitems(stock, sellModal)">Sell</button>
+                                </div>
+                            </div>
+
+                            <ng-template #buyModal let-modal>
+                                <div class="modal-header ">
+                                    <h2 class="modal-title fw-bold m-0">{{ stock.Symbol }}
+                                    </h2>
+                                    <button type="button" class="btn-close" aria-label="Close"
+                                        (click)="modal.dismiss('Cross click')"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <p>Current Price: {{ stock.quote | number: '1.2-2' }}</p>
+                                    </div>
+                                    <div class="row">
+                                        <p>Money in Wallet:{{ portfolioData[0]?.Balance | currency }}</p>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-2">Quantity:</div>
+                                        <input type="number" class="form-control" [(ngModel)]="buyquantity" min="0"
+                                            style="width: auto;">
+                                    </div>
+                                    <div *ngIf="buyquantity * stock.quote > portfolioData[0]?.Balance"
+                                        class="text-danger mt-2">
+                                        Not enough money in wallet.
+                                    </div>
+                                </div>
+                                <div class="modal-footer justify-content-between">
+                                    <h4 class="text-left">Total: {{ buyquantity * stock.quote | number: '1.2-2' }}</h4>
+                                    <button type="button" class="btn btn-success" (click)="buyStock(stock.Symbol,modal)"
+                                        [disabled]="buyquantity <= 0 || buyquantity * stock.quote > portfolioData[0]?.Balance">Buy</button>
+                                </div>
+                            </ng-template>
+
+                            <ng-template #sellModal let-modal>
+                                <div class="modal-header ">
+                                    <h2 class="modal-title fw-bold m-0">{{ stock.Symbol }}
+                                    </h2>
+                                    <button type="button" class="btn-close" aria-label="Close"
+                                        (click)="modal.dismiss('Cross click')"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <p>Current Price: {{ stock.quote | number: '1.2-2' }}</p>
+                                    </div>
+                                    <div class="row">
+                                        <p>Money in Wallet:{{ portfolioData[0]?.Balance | currency }}</p>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-2">Quantity:</div>
+                                        <input type="number" class="form-control" [(ngModel)]="sellquantity" min="0"
+                                            style="width: auto;">
+                                    </div>
+                                    <div *ngIf="sellquantity > stock.Quantity" class="text-danger mt-2" role="alert">
+                                        You cannot sell the stocks that you dont have!
+                                    </div>
+                                </div>
+                                <div class="modal-footer justify-content-between">
+                                    <h4 class="ml-2">Total: {{ sellquantity * stock.quote | number: '1.2-2' }}</h4>
+                                    <button type="button" class="btn btn-success"
+                                        (click)="sellStock(stock.Symbol,modal)"
+                                        [disabled]="sellquantity <= 0 || sellquantity > stock.Quantity">Sell</button>
+                                </div>
+                            </ng-template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

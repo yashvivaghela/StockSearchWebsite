@@ -1,0 +1,10 @@
+node_modules/
+npm-debug.log
+
+dist/
+.tmp/
+
+.env
+client/node_modules/
+server/node_modules/
+.angular

@@ -1,0 +1,345 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+<div class="container mt-3">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <h2>STOCK SEARCH</h2>
+            <div class="input-group mt-4">
+
+                <input type="text" class="form-control" matInput [formControl]="searchControl" [matAutocomplete]="auto"
+                    (keyup.enter)="onSearch()" placeholder="Enter stock ticker symbol" aria-label="Stock Ticker"
+                    required>
+
+                <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn"
+                    (optionSelected)="onOptionSelected($event)">
+                    <mat-option *ngIf="isLoading">
+                        <mat-spinner [diameter]="20"></mat-spinner>
+                    </mat-option>
+
+                    <mat-option *ngFor="let option of filteredOptions | async" [value]="option">
+                        {{ option.displaySymbol }} | {{ option.description }}
+                    </mat-option>
+                </mat-autocomplete>
+                <button (click)="onSearch()" class="btn" type="button">
+                    <i class="bi bi-search"></i>
+                </button>
+
+                <button (click)="clearSearch()" class="btn " type="button">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<ngb-alert *ngIf="noDataError" type="danger" [dismissible]="false" class="mt-2 text-center">
+    {{ noDataErrorMessage }}
+</ngb-alert>
+
+<ngb-alert *ngIf="watchlistaddError" type="success" class="mt-2 text-center">
+    {{ watchlistaddErrorMessage }}
+</ngb-alert>
+
+<ngb-alert *ngIf="watchlistdeleteError" type="danger" class="mt-2 text-center">
+    {{ watchlistdeleteErrorMessage }}
+</ngb-alert>
+
+<ngb-alert *ngIf="buyalert" type="success" class="mt-2 text-center">
+    {{ buyalertMessage }}
+</ngb-alert>
+
+<ngb-alert *ngIf="sellalert" type="danger" class="mt-2 text-center">
+    {{ sellalertMessage }}
+</ngb-alert>
+
+
+<div class="d-flex justify-content-center mt-2">
+    <mat-spinner [diameter]="50" *ngIf="isStockDataLoading"></mat-spinner>
+</div>
+<div *ngIf="stockData" class="stock-details-container text-center mt-5">
+
+    <div class="row">
+        <div class="col">
+            <div class="d-inline-block">
+                <h2>
+                    {{ stockData.profile.ticker }}
+
+                    <i [ngClass]="isFavorite ? 'bi-star-fill text-warning' : 'bi-star'"
+                        (click)="toggleFavorite(stockData.profile.ticker, stockData.profile.name)"></i>
+                </h2>
+                <span class="h5">{{ stockData.profile.name }}</span>
+
+
+                <p class="mb-2">{{ stockData.profile.exchange }}</p>
+                <button class="btn btn-success " style="margin:4px;" (click)="selectbuysellitems(stockData.profile.ticker, buyModal)">Buy</button>
+                <button *ngIf="stockInPortfolio" class="btn btn-danger" style="margin:4px;" (click)="selectbuysellitems(stockData.profile.ticker, sellModal)">Sell</button>
+            </div>
+        </div>
+     
+        <ng-template #buyModal let-modal>
+            <div class="modal-header ">
+                <h2 class="modal-title fw-bold m-0">{{ stockData.profile.ticker }}
+                </h2>
+                <button type="button" class="btn-close" aria-label="Close"
+                    (click)="modal.dismiss('Cross click')"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <p>Current Price: {{ stockData.quote.c | number: '1.2-2' }}</p>
+                </div>
+                <div class="row">
+                    <p>Money in Wallet:{{ portfolioData[0]?.Balance | currency }}</p>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="me-2">Quantity:</div>
+                    <input type="number" class="form-control" [(ngModel)]="buyquantity" min="0"
+                        style="width: auto;">
+                </div>
+                <div *ngIf="buyquantity * stockData.quote.c > portfolioData[0]?.Balance"
+                    class="text-danger mt-2">
+                    Not enough money in wallet.
+                </div>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <h4 class="text-left">Total: {{ buyquantity * stockData.quote.c | number: '1.2-2' }}</h4>
+                <button type="button" class="btn btn-success" (click)="buyStock(stockData.profile.ticker,modal)"
+                    [disabled]="buyquantity <= 0 || buyquantity * stockData.quote.c > portfolioData[0]?.Balance">Buy</button>
+            </div>
+        </ng-template>
+
+        <ng-template #sellModal let-modal>
+            <div class="modal-header ">
+                <h2 class="modal-title fw-bold m-0">{{ stockData.profile.ticker }}
+                </h2>
+                <button type="button" class="btn-close" aria-label="Close"
+                    (click)="modal.dismiss('Cross click')"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <p>Current Price: {{ stockData.quote.c | number: '1.2-2' }}</p>
+                </div>
+                <div class="row">
+                    <p>Money in Wallet:{{ portfolioData[0]?.Balance | currency }}</p>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="me-2">Quantity:</div>
+                    <input type="number" class="form-control" [(ngModel)]="sellquantity" min="0"
+                        style="width: auto;">
+                </div>
+                <div *ngIf="sellquantity >currentStockQuantity" class="text-danger mt-2" role="alert">
+                    You cannot sell the stocks that you dont have!
+                </div>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <h4 class="ml-2">Total: {{ sellquantity * stockData.quote.c | number: '1.2-2' }}</h4>
+                <button type="button" class="btn btn-success"
+                    (click)="sellStock(stockData.profile.ticker,modal)"
+                    [disabled]="sellquantity <= 0 || sellquantity > currentStockQuantity">Sell</button>
+            </div>
+        </ng-template>
+
+
+
+        <div class="col">
+            <div class="d-inline-block">
+                <img [src]="stockData.profile.logo" alt="{{ stockData.profile.name }} logo" class="img-fluid"
+                    style="width:80px;height:80px;">
+            </div>
+            <div class="row mt-5">
+                <div class="d-inline-block">
+                    <p *ngIf="!isMarketOpen(stockData.quote.t)" class="text-danger d-inline">
+                        Market Closed on {{ stockData.quote.t * 1000 | date: 'yyyy-MM-dd HH:mm:ss' }}
+                    </p>
+                    <p *ngIf="isMarketOpen(stockData.quote.t)" class="text-success d-inline">
+                        Market is Open
+                    </p>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="col">
+            <div class="d-inline-block text-right">
+                <h2 class="d-block"
+                    [ngClass]="{'text-success': stockData.quote.d > 0, 'text-danger': stockData.quote.d < 0}">
+                    {{ stockData.quote.c | number: '1.2-2' }}
+                </h2>
+                <div [ngClass]="{'text-success': stockData.quote.d > 0, 'text-danger': stockData.quote.d < 0}">
+                    <i
+                        [ngClass]="{'bi-caret-up-fill': stockData.quote.d > 0, 'bi-caret-down-fill': stockData.quote.d < 0}"></i>
+                    {{ stockData.quote.d | number: '1.2-2' }} ({{ stockData.quote.dp | number: '1.2-2' }}%)
+                </div>
+                <p>{{ currentTimestamp | date: 'yyyy-MM-dd HH:mm:ss' }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-center">
+        <mat-tab-group class="w-75 mt-4 ">
+            <mat-tab label="Summary">
+                <div class="row container mt-3 mb-5">
+                    <div class="col-md-6  mb-4">
+                        <div class="row">
+                            <div class="col stock-summary mt-2 ml-0">
+                                <p class="fw-bold">High Price: <span class="fw-normal">{{ stockData.quote.h |
+                                        number:'1.2-2' }}</span></p>
+                                <p class="fw-bold">Low Price: <span class="fw-normal">{{ stockData.quote.l |
+                                        number:'1.2-2' }}</span></p>
+                                <p class="fw-bold">Open Price: <span class="fw-normal">{{ stockData.quote.o |
+                                        number:'1.2-2' }}</span></p>
+                                <p class="fw-bold">Prev. Close: <span class="fw-normal">{{ stockData.quote.pc |
+                                        number:'1.2-2' }}</span></p>
+                            </div>
+                            <div class="col"></div>
+                        </div>
+
+                        <div class="col about-company mt-4">
+                            <h3 class="fw-bold text-decoration-underline">About the company:</h3>
+                            <p class="fw-bold">IPO Start Date: <span class="fw-normal">{{ stockData.profile.ipo
+                                    }}</span></p>
+                            <p class="fw-bold">Industry: <span class="fw-normal">{{ stockData.profile.finnhubIndustry
+                                    }}</span></p>
+                            <p class="fw-bold">Webpage: <span class="fw-normal"><a href="{{ stockData.profile.weburl }}"
+                                        target="_blank">{{ stockData.profile.weburl }}</a></span></p>
+                            <p class="fw-bold">Company Peers:</p>
+                            <ul class="list-inline">
+                                <li class="list-inline-item" *ngFor="let peer of stockData.peers">
+                                    <a href="#" (click)="onPeerSelected($event,peer)">{{ peer }}</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-5">
+                        <highcharts-chart [Highcharts]="Highcharts" [options]="summarychartOptions"
+                            style="width: 100%; height: 350px; display: block;"></highcharts-chart>
+                    </div>
+                </div>
+            </mat-tab>
+
+            <mat-tab label="Top News">
+                <div class="container mt-3 mb-5">
+                    <div class="row">
+
+                        <div class="col-md-6 mb-3" *ngFor="let newsItem of stockData.limitedNews">
+                            <div class="card h-100 bg-muted" (click)="selectNewsItem(newsItem, newsModal)">
+                                <div class="card-body d-flex flex-column">
+                                    <div class="row g-0">
+                                        <div class="col-md-4 d-flex justify-content-center align-items-center">
+                                            <img class="card-img-top img-fluid w-70 h-70" [src]="newsItem.image"
+                                                alt="News image">
+                                        </div>
+                                        <div class="col-md-8 d-flex align-items-center">
+                                            <h5 class="card-title my-2 m-3 text-center">{{ newsItem.headline }}</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <ng-template #newsModal let-modal>
+                    <div class="modal-header ">
+                        <div class="d-block">
+                            <h2 class="modal-title fw-bold m-0">{{ selectedNewsItem.source }}
+                            </h2>
+                            <p class="text-muted mt-0 mb-0">{{ selectedNewsItem.datetime*1000 |
+                                date:'MMMM d, y' }}</p>
+                        </div>
+                        <button type="button" class="btn-close" aria-label="Close"
+                            (click)="modal.dismiss('Cross click')"></button>
+                    </div>
+                    <div class="modal-body">
+                        <h3 class="fw-bold">{{ selectedNewsItem.headline }}</h3>
+
+                        <h5>{{ selectedNewsItem.summary }}</h5>
+                        <p class="text-muted">For more details click <a href="{{ selectedNewsItem.url }}"
+                                target="_blank">here</a>.</p>
+
+                        <div class="border-box d-block align-items-center justify-content-center mt-4"
+                            style="border: 1px solid #ccc;">
+                            <div class="mt-2 mb-2">
+                                <h3 class="text-muted m-2">Share</h3>
+                                <div class="mt-4 mb-2">
+                                    <a class="p-2"
+                                        href="https://twitter.com/intent/tweet?text={{ encodeUriComponent(selectedNewsItem.headline) }}&url={{ encodeUriComponent(selectedNewsItem.url) }}"
+                                        target="_blank" rel="noopener noreferrer">
+                                        <i class="bi bi-twitter-x fs-2 text-dark"></i>
+                                    </a>
+                                    <a class="p-2"
+                                        href="https://www.facebook.com/sharer/sharer.php?u={{ encodeUriComponent(selectedNewsItem.url) }}"
+                                        target="_blank" rel="noopener noreferrer">
+
+                                        <i class="bi bi-facebook fs-2"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </ng-template>
+            </mat-tab>
+
+
+            <mat-tab label="Charts">
+                <div class="mb-5 mt-2">
+                    <highcharts-chart [Highcharts]="Highcharts" [options]="chartsOption"
+                        style="width: 100%; height: 400px; display: block;"></highcharts-chart>
+                </div>
+            </mat-tab>
+
+
+            <mat-tab label="Insights">
+                <div class="container mt-4">
+                    <div class="row justify-content-center">
+                        <div class="col-md-8 d-block">
+                            <h2 class="text-center">Insider Sentiments</h2>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">{{ stockData.profile.name }}</th>
+                                        <th scope="col">MSPR</th>
+                                        <th scope="col">Change</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <th scope="row">Total</th>
+                                        <td>{{ totalMspr | number:'1.2-2' }}</td>
+                                        <td>{{totalChange | number:'1.2-2' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Positive</th>
+                                        <td>{{ positiveMspr | number:'1.2-2' }}</td>
+                                        <td>{{ positiveChange | number:'1.2-2' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Negative</th>
+                                        <td>{{ negativeMspr | number:'1.2-2' }}</td>
+                                        <td>{{ negativeChange | number:'1.2-2' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-5">
+                    <div class="col-md-6 mb-5">
+                        <highcharts-chart [Highcharts]="Highcharts" [options]="recommendationOptions"
+                            style="width: 100%; height: 350px; display: block;"></highcharts-chart>
+                    </div>
+                    <div class="col-md-6 mb-5">
+                        <highcharts-chart [Highcharts]="Highcharts" [options]="earningsOptions"
+                            style="width: 100%; height: 350px; display: block;"></highcharts-chart>
+                    </div>
+
+                </div>
+
+            </mat-tab>
+        </mat-tab-group>
+    </div>
+
+</div>

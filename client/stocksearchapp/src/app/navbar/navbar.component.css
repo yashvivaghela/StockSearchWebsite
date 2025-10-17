@@ -1,0 +1,4 @@
+.nav-link.active {
+    border: 1px solid white;
+    border-radius: 15px; 
+  }
